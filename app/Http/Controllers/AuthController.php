@@ -36,19 +36,46 @@ class AuthController extends Controller
         $username = $request->input('text_username');
         $password = $request->input('text_password');
 
-        // get all the users from the database
-        // $users = User::all()->toArray();
+        // Check if the user exists and is not deleted
+        $user = User::where('username', $username)
+            ->where('deleted_at', null)
+            ->first();
 
-        // As an object instance of the model´s class
-        $userModel = new User();
-        $users = $userModel->all()->toArray();
+        if (!$user) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with(['loginError' => 'Usuário não encontrado ou deletado.']);
+        }
 
-        echo '<pre>';
-        print_r($users);
+        // Check if password is correct
+        if (!password_verify($password, $user->password)) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with(['loginError' => 'Senha incorreta.']);
+        }
+
+        // Update last login
+        $user->last_login = date('Y-m-d H:i:s');
+        $user->save();
+
+        // Login user
+        session([
+            'user' => [
+                'id' => $user->id,
+                'username' => $user->username
+            ]
+        ]);
+
+        // Redirect to home
+        return redirect()->to('/');
     }
 
     public function logout()
     {
-        echo 'Logout';
+        // Logout from the application
+        session()->forget('user');
+        return redirect()->to('/login');
     }
 }
