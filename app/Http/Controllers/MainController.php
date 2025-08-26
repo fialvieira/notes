@@ -3,8 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\Note;
+use App\Models\{User, Note};
 use App\Services\Operations;
 
 class MainController extends Controller
@@ -13,7 +12,11 @@ class MainController extends Controller
     {
         // Load user´s notes
         $id = session('user.id');
-        $notes = User::find($id)->notes()->get()->toArray();
+        $notes = User::find($id)
+            ->notes()
+            ->whereNull('deleted_at')
+            ->get()
+            ->toArray();
 
         // Show home view
         return view('home', ['notes' => $notes]);
@@ -114,6 +117,39 @@ class MainController extends Controller
     public function deleteNote($id)
     {
         $id = Operations::decryptId($id);
-        echo "Deleting note with ID: " . $id;
+        // Load note data
+        $note = Note::find($id);
+        if (!$note) {
+            return redirect()->route('home')->with('error', 'Note not found.');
+        }
+
+        // Show delete confirmation view
+        return view('delete_note', ['note' => $note]);
+    }
+
+    public function deleteNoteConfirm($id)
+    {
+        $id = Operations::decryptId($id);
+        // Find note
+        $note = Note::find($id);
+        if (!$note) {
+            return redirect()->route('home')->with('error', 'Note not found.');
+        }
+
+        // 1. Hard delete
+        //$note->delete();
+
+        // 2. Soft delete
+        //$note->deleted_at = date('Y-m-d H:i:s');
+        //$note->save();
+
+        // 3. Soft delete property SoftDeletes in model
+        $note->delete();
+
+        // 4. Hard delete property SoftDeletes in model
+        //$note->forceDelete();
+
+        // Redirect to home
+        return redirect()->route('home')->with('success', 'Note deleted successfully.');
     }
 }
